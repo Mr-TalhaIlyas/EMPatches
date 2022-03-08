@@ -17,6 +17,11 @@ python >= 3.6
 numpy 
 math
 ```
+## Installation
+[Pypi](https://pypi.org/project/empatches/)
+```
+pip install empatches
+```
 
 ## Usage
 
