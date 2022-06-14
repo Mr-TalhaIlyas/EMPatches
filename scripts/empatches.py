@@ -100,14 +100,14 @@ class EMPatches(object):
             rgb = False
         
         if rgb:
-            empty_image = np.zeros((orig_h, orig_w, 3)).astype(np.uint8)
+            empty_image = np.zeros((orig_h, orig_w, 3))#.astype(np.uint8)
         else:
-            empty_image = np.zeros((orig_h, orig_w)).astype(np.uint8)
+            empty_image = np.zeros((orig_h, orig_w))#.astype(np.uint8)
             
         for i, indice in enumerate(indices):
             if rgb:
-                empty_image[indice[0]:indice[1], indice[2]:indice[3], :] = img_patches[i].astype(np.uint8)
+                empty_image[indice[0]:indice[1], indice[2]:indice[3], :] = img_patches[i]#.astype(np.uint8)
             else:
-                empty_image[indice[0]:indice[1], indice[2]:indice[3]] = img_patches[i].astype(np.uint8)
+                empty_image[indice[0]:indice[1], indice[2]:indice[3]] = img_patches[i]#.astype(np.uint8)
                 
         return empty_image
