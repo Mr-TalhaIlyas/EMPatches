@@ -31,13 +31,14 @@ from empatches import EMPatches
 
 # get image either RGB or Grayscale
 img = cv2.imread('../penguin.jpg')
+img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 # load module
 emp = EMPatches()
 img_patches, indices = emp.extract_patches(img, patchsize=32, overlap=0.2)
 
 # displaying an image patch
 plt.figure()
-plt.imshow(img_patches[0])
+plt.imshow(img_patches[0].astype(np.uint8))
 ```
 ### Image Processing
 Now we can perform our operation on each patch independently and after we are done we can merge them back together.
@@ -58,7 +59,7 @@ After processing the patches if you can merge all of them back in original form 
 merged_img = emp.merge_patches(img_patches_processed, indices)
 # display
 plt.figure()
-plt.imshow(merged_img)
+plt.imshow(merged_img.astype(np.uint8))
 ```
 
 
