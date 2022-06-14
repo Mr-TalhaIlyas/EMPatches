@@ -35,7 +35,7 @@ img = cv2.imread('../penguin.jpg')
 img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 # load module
 emp = EMPatches()
-img_patches, indices = emp.extract_patches(img, patchsize=32, overlap=0.2)
+img_patches, indices = emp.extract_patches(img, patchsize=128, overlap=0.2)
 
 # displaying 1st 10 image patches
 tiled= imgviz.tile(list(map(np.uint8, img_patches[0:10])),border=(255,0,0))
