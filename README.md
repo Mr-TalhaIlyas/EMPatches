@@ -28,6 +28,7 @@ pip install empatches
 ### Extracting Patches
 ```python
 from empatches import EMPatches
+import imgviz # just for plotting
 
 # get image either RGB or Grayscale
 img = cv2.imread('../penguin.jpg')
@@ -36,9 +37,10 @@ img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 emp = EMPatches()
 img_patches, indices = emp.extract_patches(img, patchsize=32, overlap=0.2)
 
-# displaying an image patch
+# displaying 1st 10 image patches
+tiled= imgviz.tile(list(map(np.uint8, img_patches[0:10])),border=(255,0,0))
 plt.figure()
-plt.imshow(img_patches[0].astype(np.uint8))
+plt.imshow(tiled)
 ```
 ### Image Processing
 Now we can perform our operation on each patch independently and after we are done we can merge them back together.
