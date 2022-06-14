@@ -42,6 +42,7 @@ tiled= imgviz.tile(list(map(np.uint8, img_patches[0:10])),border=(255,0,0))
 plt.figure()
 plt.imshow(tiled)
 ```
+![alt text](https://github.com/Mr-TalhaIlyas/EMPatches/blob/main/screens/patch.png)
 ### Image Processing
 Now we can perform our operation on each patch independently and after we are done we can merge them back together.
 
@@ -63,5 +64,5 @@ merged_img = emp.merge_patches(img_patches_processed, indices)
 plt.figure()
 plt.imshow(merged_img.astype(np.uint8))
 ```
-
+![alt text](https://github.com/Mr-TalhaIlyas/EMPatches/blob/main/screens/merged.png)
 
