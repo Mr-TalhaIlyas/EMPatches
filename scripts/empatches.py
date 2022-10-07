@@ -12,15 +12,15 @@ class EMPatches(object):
     def __init__(self):
         pass
 
-    def extract_patches(self, img, patchsize, overlap):
+    def extract_patches(self, img, patchsize, overlap=None, stride=None):
         '''
         Parameters
         ----------
         img : image to extract patches from in [H W Ch] format.
         patchsize :  size of patch to extract from image only square patches can be
                      extracted for now.
-        overlap : overlap between patched in percentage a float between [0, 1].
-    
+        overlap (Optional): overlap between patched in percentage a float between [0, 1].
+        stride (Optional): Step size between patches
         Returns
         -------
         img_patches : a list containing extracted patches of images.
@@ -28,26 +28,37 @@ class EMPatches(object):
                   at later stage for 'merging_patches'.
     
         '''
-        
-        maxWindowSize = patchsize
-        overlapPercent = overlap
-        
+
         height = img.shape[0]
         width = img.shape[1]
-        
+        maxWindowSize = patchsize
         windowSizeX = maxWindowSize
         windowSizeY = maxWindowSize
-        # If the input data is smaller than the specified window size,
-        # clip the window size to the input size on both dimensions
         windowSizeX = min(windowSizeX, width)
         windowSizeY = min(windowSizeY, height)
-        
-        # Compute the window overlap and step size
-        windowOverlapX = int(math.floor(windowSizeX * overlapPercent))
-        windowOverlapY = int(math.floor(windowSizeY * overlapPercent))
-        
-        stepSizeX = windowSizeX - windowOverlapX
-        stepSizeY = windowSizeY - windowOverlapY
+
+        if stride is not None:
+            stepSizeX = stride
+            stepSizeY = stride
+        elif overlap is not None:
+            overlapPercent = overlap
+
+            windowSizeX = maxWindowSize
+            windowSizeY = maxWindowSize
+            # If the input data is smaller than the specified window size,
+            # clip the window size to the input size on both dimensions
+            windowSizeX = min(windowSizeX, width)
+            windowSizeY = min(windowSizeY, height)
+
+            # Compute the window overlap and step size
+            windowOverlapX = int(math.floor(windowSizeX * overlapPercent))
+            windowOverlapY = int(math.floor(windowSizeY * overlapPercent))
+
+            stepSizeX = windowSizeX - windowOverlapX
+            stepSizeY = windowSizeY - windowOverlapY
+        else:
+            stepSizeX = 1
+            stepSizeY = 1
         
         # Determine how many windows we will need in order to cover the input data
         lastX = width - windowSizeX
@@ -91,7 +102,9 @@ class EMPatches(object):
         -------
         Stitched image.
         '''
-        
+
+        dtype = img_patches[0].dtype
+
         orig_h = indices[-1][1]
         orig_w = indices[-1][3]
         
@@ -100,9 +113,9 @@ class EMPatches(object):
             rgb = False
         
         if rgb:
-            empty_image = np.zeros((orig_h, orig_w, 3))#.astype(np.uint8)
+            empty_image = np.zeros((orig_h, orig_w, 3)).astype(dtype)
         else:
-            empty_image = np.zeros((orig_h, orig_w))#.astype(np.uint8)
+            empty_image = np.zeros((orig_h, orig_w)).astype(dtype)
             
         for i, indice in enumerate(indices):
             if rgb:
