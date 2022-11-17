@@ -205,7 +205,7 @@ class BatchPatching(EMPatches):
             raise ValueError(f'Input batch should be of shape BxCxHxW or BxHxWxC i.e. 4 dims, but got {len(batch.shape)} dims')
         
         if self.typ == 'torch':
-            batch = batch.transpose(0,2,3,1)
+            batch = batch.permute(0,2,3,1)
         
         img_list = list(batch)
 
@@ -239,7 +239,7 @@ class BatchPatching(EMPatches):
         m_patches = np.asarray(m_patches)
         
         if self.typ == 'torch':
-            m_patches = m_patches.transpose(0,3,2,1)
+            m_patches = m_patches.permute(0,3,2,1)
 
         return m_patches
         
