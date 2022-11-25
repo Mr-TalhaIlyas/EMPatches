@@ -7,15 +7,46 @@ Created on Mon Mar  7 15:32:58 2022
 
 import numpy as np
 import math
+from typing import Iterable
+from copy import deepcopy
 
+
+class Patches:
+    def __init__(self, imgs, EM_indices):
+        self.imgs = np.array(imgs)
+        self.old_imgs = None
+        self._EM_indices = EM_indices
+
+    def update(self, imgs, shift_indices):
+
+        if not isinstance(shift_indices, Iterable):
+            raise TypeError('param "shifted_indices is not iteratable."')
+
+        if self.is_updated():
+            raise ValueError('Patches already updated. please .reset() before update.')
+
+        if (len(imgs.shape) == 3 and len(shift_indices) == 1) or (
+            len(imgs.shape) == 4 and len(shift_indices) == imgs.shape[0]
+        ):
+            self.old_imgs = deepcopy(self.imgs)
+            self.imgs[shift_indices] = imgs
+        else:
+            raise ValueError('Image shape and index not Matched.')
+
+    def is_updated(self):
+        return True if self.old_imgs is not None else False
+
+    def reset(self):
+        if self.is_updated():
+            self.imgs = self.old_imgs
+            self.old_imgs = None
 
 
 class EMPatches(object):
-    
     def __init__(self):
         pass
 
-    def extract_patches(self, img, patchsize, overlap=None, stride=None):
+    def extract_patches(self, img, patchsize, overlap=None, stride=None) -> Patches:
         '''
         Parameters
         ----------
@@ -27,9 +58,9 @@ class EMPatches(object):
         Returns
         -------
         img_patches : a list containing extracted patches of images.
-        indices : a list containing indices of patches in order, whihc can be used 
+        indices : a list containing indices of patches in order, whihc can be used
                   at later stage for 'merging_patches'.
-    
+
         '''
 
         height = img.shape[0]
@@ -62,38 +93,38 @@ class EMPatches(object):
         else:
             stepSizeX = 1
             stepSizeY = 1
-        
+
         # Determine how many windows we will need in order to cover the input data
         lastX = width - windowSizeX
         lastY = height - windowSizeY
-        xOffsets = list(range(0, lastX+1, stepSizeX))
-        yOffsets = list(range(0, lastY+1, stepSizeY))
-        
+        xOffsets = list(range(0, lastX + 1, stepSizeX))
+        yOffsets = list(range(0, lastY + 1, stepSizeY))
+
         # Unless the input data dimensions are exact multiples of the step size,
         # we will need one additional row and column of windows to get 100% coverage
         if len(xOffsets) == 0 or xOffsets[-1] != lastX:
-        	xOffsets.append(lastX)
+            xOffsets.append(lastX)
         if len(yOffsets) == 0 or yOffsets[-1] != lastY:
-        	yOffsets.append(lastY)
-        
+            yOffsets.append(lastY)
+
         img_patches = []
         indices = []
-        
+
         for xOffset in xOffsets:
             for yOffset in yOffsets:
-              if len(img.shape) >= 3:
-                  img_patches.append(img[(slice(yOffset, yOffset+windowSizeY, None),
-                                          slice(xOffset, xOffset+windowSizeX, None))])
-              else:
-                  img_patches.append(img[(slice(yOffset, yOffset+windowSizeY),
-                                          slice(xOffset, xOffset+windowSizeX))])
-                  
-              indices.append((yOffset, yOffset+windowSizeY, xOffset, xOffset+windowSizeX))
-        
-        return img_patches, indices
-    
-    
-    def merge_patches(self, img_patches, indices, mode='overwrite'):
+                if len(img.shape) >= 3:
+                    img_patches.append(
+                        img[(slice(yOffset, yOffset + windowSizeY, None), slice(xOffset, xOffset + windowSizeX, None))]
+                    )
+                else:
+                    img_patches.append(
+                        img[(slice(yOffset, yOffset + windowSizeY), slice(xOffset, xOffset + windowSizeX))]
+                    )
+            indices.append((yOffset, yOffset + windowSizeY, xOffset, xOffset + windowSizeX))
+
+        return Patches(img_patches, indices)
+
+    def merge_patches(self, patches: Patches, mode='overwrite'):
         '''
         Parameters
         ----------
@@ -113,55 +144,66 @@ class EMPatches(object):
         if mode not in modes:
             raise ValueError(f"mode has to be either one of {modes}, but got {mode}")
 
-        orig_h = indices[-1][1]
-        orig_w = indices[-1][3]
-        
+        orig_h = patches._EM_indices[-1][1]
+        orig_w = patches._EM_indices[-1][3]
+
         rgb = True
-        if len(img_patches[0].shape) == 2:
+        if len(patches.imgs[0].shape) == 2:
             rgb = False
-        
+
         if mode == 'min':
             if rgb:
-                empty_image = np.zeros((orig_h, orig_w, 3)).astype(np.float32) + np.inf # using float here is better
+                empty_image = np.zeros((orig_h, orig_w, 3)).astype(np.float32) + np.inf  # using float here is better
             else:
-                empty_image = np.zeros((orig_h, orig_w)).astype(np.float32) + np.inf # using float here is better
+                empty_image = np.zeros((orig_h, orig_w)).astype(np.float32) + np.inf  # using float here is better
         else:
             if rgb:
-                empty_image = np.zeros((orig_h, orig_w, 3)).astype(np.float32)# using float here is better
+                empty_image = np.zeros((orig_h, orig_w, 3)).astype(np.float32)  # using float here is better
             else:
-                empty_image = np.zeros((orig_h, orig_w)).astype(np.float32)# using float here is better
+                empty_image = np.zeros((orig_h, orig_w)).astype(np.float32)  # using float here is better
 
-
-        for i, indice in enumerate(indices):
+        for i, indice in enumerate(patches._EM_indices):
             if mode == 'overwrite':
                 if rgb:
-                    empty_image[indice[0]:indice[1], indice[2]:indice[3], :] = img_patches[i]
+                    empty_image[indice[0] : indice[1], indice[2] : indice[3], :] = patches.imgs[i]
                 else:
-                    empty_image[indice[0]:indice[1], indice[2]:indice[3]] = img_patches[i]
+                    empty_image[indice[0] : indice[1], indice[2] : indice[3]] = patches.imgs[i]
             elif mode == 'max':
                 if rgb:
-                    empty_image[indice[0]:indice[1], indice[2]:indice[3], :] = np.maximum(img_patches[i], empty_image[indice[0]:indice[1], indice[2]:indice[3], :])
+                    empty_image[indice[0] : indice[1], indice[2] : indice[3], :] = np.maximum(
+                        patches.imgs[i], empty_image[indice[0] : indice[1], indice[2] : indice[3], :]
+                    )
                 else:
-                    empty_image[indice[0]:indice[1], indice[2]:indice[3]] = np.maximum(img_patches[i], empty_image[indice[0]:indice[1], indice[2]:indice[3]])
+                    empty_image[indice[0] : indice[1], indice[2] : indice[3]] = np.maximum(
+                        patches.imgs[i], empty_image[indice[0] : indice[1], indice[2] : indice[3]]
+                    )
             elif mode == 'min':
                 if rgb:
-                    empty_image[indice[0]:indice[1], indice[2]:indice[3], :] = np.minimum(img_patches[i], empty_image[indice[0]:indice[1], indice[2]:indice[3], :])
+                    empty_image[indice[0] : indice[1], indice[2] : indice[3], :] = np.minimum(
+                        patches.imgs[i], empty_image[indice[0] : indice[1], indice[2] : indice[3], :]
+                    )
                 else:
-                    empty_image[indice[0]:indice[1], indice[2]:indice[3]] = np.minimum(img_patches[i], empty_image[indice[0]:indice[1], indice[2]:indice[3]])
+                    empty_image[indice[0] : indice[1], indice[2] : indice[3]] = np.minimum(
+                        patches.imgs[i], empty_image[indice[0] : indice[1], indice[2] : indice[3]]
+                    )
             elif mode == 'avg':
                 if rgb:
-                    empty_image[indice[0]:indice[1], indice[2]:indice[3], :] = np.where(empty_image[indice[0]:indice[1], indice[2]:indice[3], :] == 0,
-                                                                                        img_patches[i], 
-                                                                                        np.add(img_patches[i],empty_image[indice[0]:indice[1], indice[2]:indice[3], :])/2)
+                    empty_image[indice[0] : indice[1], indice[2] : indice[3], :] = np.where(
+                        empty_image[indice[0] : indice[1], indice[2] : indice[3], :] == 0,
+                        patches.imgs[i],
+                        np.add(patches.imgs[i], empty_image[indice[0] : indice[1], indice[2] : indice[3], :]) / 2,
+                    )
                     # Below line should work with np.ones mask but giving Weights sum to zero error and is approx. 10 times slower then np.where
                     # empty_image[indice[0]:indice[1], indice[2]:indice[3], :] = np.average(([empty_image[indice[0]:indice[1], indice[2]:indice[3], :],
                     #                                                                         img_patches[i]]), axis=0,
                     #                                                                         weights=(np.asarray([empty_image[indice[0]:indice[1], indice[2]:indice[3], :],
                     #                                                                                               img_patches[i]])>0))
                 else:
-                    empty_image[indice[0]:indice[1], indice[2]:indice[3]] = np.where(empty_image[indice[0]:indice[1], indice[2]:indice[3]] == 0,
-                                                                                    img_patches[i], 
-                                                                                    np.add(img_patches[i],empty_image[indice[0]:indice[1], indice[2]:indice[3]])/2)
+                    empty_image[indice[0] : indice[1], indice[2] : indice[3]] = np.where(
+                        empty_image[indice[0] : indice[1], indice[2] : indice[3]] == 0,
+                        patches.imgs[i],
+                        np.add(patches.imgs[i], empty_image[indice[0] : indice[1], indice[2] : indice[3]]) / 2,
+                    )
 
         return empty_image
 
@@ -194,19 +236,21 @@ class BatchPatching(EMPatches):
         Returns
         -------
         batch_patches : a list containing lists of extracted patches of images.
-        batch_indices : a list containing lists of indices of patches in order, whihc can be used 
+        batch_indices : a list containing lists of indices of patches in order, whihc can be used
                   at later stage for 'merging_patches'.
-    
+
         '''
         typs = ["tf", "torch"]
         if self.typ not in typs:
             raise ValueError(f"mode has to be either one of {typs}, but got {self.typ}")
         if len(batch.shape) < 4:
-            raise ValueError(f'Input batch should be of shape BxCxHxW or BxHxWxC i.e. 4 dims, but got {len(batch.shape)} dims')
-        
+            raise ValueError(
+                f'Input batch should be of shape BxCxHxW or BxHxWxC i.e. 4 dims, but got {len(batch.shape)} dims'
+            )
+
         if self.typ == 'torch':
-            batch = batch.transpose(0,2,3,1)
-        
+            batch = batch.transpose(0, 2, 3, 1)
+
         img_list = list(batch)
 
         b_patches, b_indices = [], []
@@ -214,7 +258,7 @@ class BatchPatching(EMPatches):
             patches, indices = super().extract_patches(img_list[i], self.patchsize, self.overlap, self.stride)
             b_patches.append(patches)
             b_indices.append(indices)
-        
+
         return b_patches, b_indices
 
     def merge_batch(self, b_patches, b_indices, mode='overwrite'):
@@ -229,7 +273,7 @@ class BatchPatching(EMPatches):
         Returns
         -------
         merged_batch : a np array of shape BxCxHxW -> pytorch or BxHxWxC -> tf.
-        
+
         '''
         m_patches = []
         for p, i in zip(b_patches, b_indices):
@@ -237,32 +281,30 @@ class BatchPatching(EMPatches):
             m_patches.append(m)
 
         m_patches = np.asarray(m_patches)
-        
+
         if self.typ == 'torch':
-            m_patches = m_patches.transpose(0,3,2,1)
+            m_patches = m_patches.transpose(0, 3, 2, 1)
 
         return m_patches
-        
+
 
 def patch_via_indices(img, indices):
     '''
-        Parameters
-        ----------
-        img : image of shape HxWxC or HxW.
-        indices :   list of indices/tuple of 4 e.g;
-                    [(ystart, yend, xstart, xend), -> indices of 1st patch
-                     (ystart, yend, xstart, xend), -> indices of 2nd patch
-                     ...]
-        Returns
-        -------
-        img_patches : a list containing extracted patches of image.
-        '''
-    img_patches=[]
-    
+    Parameters
+    ----------
+    img : image of shape HxWxC or HxW.
+    indices :   list of indices/tuple of 4 e.g;
+                [(ystart, yend, xstart, xend), -> indices of 1st patch
+                 (ystart, yend, xstart, xend), -> indices of 2nd patch
+                 ...]
+    Returns
+    -------
+    img_patches : a list containing extracted patches of image.
+    '''
+    img_patches = []
+
     for indice in indices:
         if len(img.shape) >= 3:
-            img_patches.append(img[(slice(indice[0], indice[1], None),
-                                    slice(indice[2], indice[3], None))])
+            img_patches.append(img[(slice(indice[0], indice[1], None), slice(indice[2], indice[3], None))])
         else:
-            img_patches.append(img[(slice(indice[0], indice[1]),
-                                    slice(indice[2], indice[3]))])
+            img_patches.append(img[(slice(indice[0], indice[1]), slice(indice[2], indice[3]))])
