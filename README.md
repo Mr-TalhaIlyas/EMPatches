@@ -8,13 +8,13 @@ Extract and Merge Batches/Image patches (tf/torch), fast and self-contained digi
 
 * **Extract** patches
 * **Merge** the extracted patches to obtain the original image back.
+### *Upadate 0.2.2 (New Functionalities)*
 
-### *Update 0.2.1*
-- From now you don't need to manage patch images, indices seperatly.
-- Updated patches can be restored.
-  - Manage patches easily by using `update()`, `reset()` method. (See `patches.ipynb`)
+* Handling 1D spectral and 3D volumetric data structures, thanks to [antonyvam](https://github.com/antonyvam).
+* Batch processing support for 1D, 2D, 3D (image/pixel + voxel/volumetric) data added.
+* Bug fixes for multi-dimensional image patch merging for `C > 3`.
 
-### *Update 0.2.0 (New Functionalities)*
+### *Update 0.2.0*
 
 * Handling of `tensorflow`/`pytorch` **Batched images** of shape `BxCxHxW` -> `pytorch` or `BxHxWxC` -> `tf`. C can be any number not limited to just RGB channels.
 * **Modes** added for mergeing patches.
@@ -34,8 +34,15 @@ math
 ```
 
 # Usage
+* [Extracting Patches](#Extracting-Patches)
+* [Merging Patches](#Merging-Patches)
+* [Voxel/Volumetric Data patching](#Voxel-patching)
+* [1D spectral Data patching](#1D-patching)
+* [Strided Patching](#Strided-Patching)
+* [Batched Patching](#Batched-Patching)
+* [Patching via Providing Indices](#Patching-via-Providing-Indices)
 
-## Extracting Patches
+## <a name="Extracting-Patches">Extracting Patches</a>
 ```python
 from empatches import EMPatches
 import imgviz # just for plotting
@@ -50,10 +57,10 @@ img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 ```python
 # load module
 emp = EMPatches()
-patches = emp.extract_patches(img, patchsize=512, overlap=0.2)
+img_patches, indices = emp.extract_patches(img, patchsize=512, overlap=0.2)
 
 # displaying 1st 10 image patches
-tiled= imgviz.tile(list(map(np.uint8, patches.imgs)),border=(255,0,0))
+tiled= imgviz.tile(list(map(np.uint8, img_patches)),border=(255,0,0))
 plt.figure()
 plt.imshow(tiled)
 ```
@@ -68,24 +75,23 @@ Now we can perform our operation on each patch independently and after we are do
 pseudo code
 '''
 # do some processing, just store the patches in the list in same order
-img_patches_processed = some_processing_func(patches.imgs)
+img_patches_processed = some_processing_func(img_patches)
 # or run your deep learning model on patches independently and then merge the predictions
-img_patches_processed = model.predict(patches.imgs)
+img_patches_processed = model.predict(img_patches)
 '''For now lets just flip channels'''
-changed_imgs = cv2.cvtColor(patches.imgs[1], cv2.COLOR_BGR2RGB)
-patches.update(changed_imgs, [1])
+img_patches[1] = cv2.cvtColor(img_patches[1], cv2.COLOR_BGR2RGB)
 ```
 ![alt text](https://github.com/Mr-TalhaIlyas/EMPatches/raw/main/screens/patched_process.png)
 
-## Merging Patches via various `modes`
+## <a name="Merging-Patches">Merging-Patches</a>
 
 After processing the patches if you can merge all of them back in original form as follows,
 
 ```python
-merged_img = emp.merge_patches(patches, mode='max') # or
-merged_img = emp.merge_patches(patches, mode='min') # or
-merged_img = emp.merge_patches(patches, mode='overwrite') # or
-merged_img = emp.merge_patches(patches, mode='avg') # or
+merged_img = emp.merge_patches(img_patches, indices, mode='max') # or
+merged_img = emp.merge_patches(img_patches, indices, mode='min') # or
+merged_img = emp.merge_patches(img_patches, indices, mode='overwrite') # or
+merged_img = emp.merge_patches(img_patches, indices, mode='avg') # or
 # display
 plt.figure()
 plt.imshow(merged_img.astype(np.uint8))
@@ -93,18 +99,107 @@ plt.title(Your mode)
 ```
 ![alt text](https://github.com/Mr-TalhaIlyas/EMPatches/raw/main/screens/modesS.png)
 
-## Strided Patching
+## <a name="Strided-Patching">Strided Patching</a>
 
 ```python
-patches = emp.extract_patches(img, patchsize=512, overlap=0.2, stride=128)
-tiled= imgviz.tile(list(map(np.uint8, patches.imgs)),border=(255,0,0))
+img_patches, indices = emp.extract_patches(img, patchsize=512, overlap=0.2, stride=128)
+tiled= imgviz.tile(list(map(np.uint8, img_patches)),border=(255,0,0))
 plt.figure()
 plt.imshow(tiled.astype(np.uint8))
 plt.title('Strided patching')
 ```
 ![alt text](https://github.com/Mr-TalhaIlyas/EMPatches/raw/main/screens/stride.png)
 
-## Batched Patching
+## <a name="Voxel-patching">Volumetric/Voxel data patching</a>
+
+```python
+# first generate a sample data
+def midpoints(x):
+    sl = ()
+    for i in range(x.ndim):
+        x = (x[sl + np.index_exp[:-1]] + x[sl + np.index_exp[1:]]) / 2.0
+        sl += np.index_exp[:]
+    return x
+r, g, b = np.indices((17, 17, 17)) / 16.0
+rc = midpoints(r)
+gc = midpoints(g)
+bc = midpoints(b)
+# define a sphere about [0.5, 0.5, 0.5]
+sphere = ((rc - 0.5)**2 + (gc - 0.5)**2 + (bc - 0.5)**2 < 0.5**2).astype(int)
+
+ax = plt.figure().add_subplot(projection='3d')
+ax.voxels(sphere)
+plt.title(f'Voxel 3D data: {sphere.shape} shape')
+```
+
+Extract patches from voxel 3D data.
+
+```python
+emp = EMPatches()
+patches, indices  = emp.extract_patches(sphere, patchsize=8, overlap=0.0, stride=None, vox=True)
+
+ax = plt.figure().add_subplot(projection='3d')
+ax.voxels(patches[1])
+plt.title(f'Patched Voxel 3D data: {patches[0].shape} shape')
+
+for i in range(len(patches)):
+    print(patches[i].shape)
+
+mp = emp.merge_patches(patches, indices)
+
+```
+```
+###############___VOXEL DATA___ setting vox to True ########################
+##  shape     indices in xyz dimension
+>> (8, 8, 8) (0, 8, 0, 8, 0, 8)
+>> (8, 8, 8) (0, 8, 0, 8, 8, 16)
+>> (8, 8, 8) (8, 16, 0, 8, 0, 8)
+>> (8, 8, 8) (8, 16, 0, 8, 8, 16)
+>> (8, 8, 8) (0, 8, 8, 16, 0, 8)
+>> (8, 8, 8) (0, 8, 8, 16, 8, 16)
+>> (8, 8, 8) (8, 16, 8, 16, 0, 8)
+>> (8, 8, 8) (8, 16, 8, 16, 8, 16)
+```
+![alt text](https://github.com/Mr-TalhaIlyas/EMPatches/raw/main/screens/v4.png)
+
+### *⚠️NOTE⚠️*
+Here the output shape is 8x8x8 i.e. the croping is also done in D/C dimension unlike when we are doing image croping/patching in that case the output would have shape 8x8x3 (RGB) or 8x8 (grayscale), and incides would be like.
+
+```
+###############___PIXEL DATA___ -> setting vox to False ########################
+##  shape     indices in xy dimension
+>> (8, 8, 16) (0, 8, 0, 8)
+>> (8, 8, 16) (8, 16, 0, 8)
+>> (8, 8, 16) (0, 8, 8, 16)
+>> (8, 8, 16) (8, 16, 8, 16)
+```
+![alt text](https://github.com/Mr-TalhaIlyas/EMPatches/raw/main/screens/v3.png)
+
+## <a name="1D-patching">1D spectral Data patching</a>
+
+
+```python
+x1 = np.linspace(0.0, 5.0)
+y1 = np.cos(5 * np.pi * x1) * np.exp(-x1)
+plt.plot(y1)
+plt.title('1D spectra')
+
+emp = EMPatches()
+patches, indices  = emp.extract_patches(y1, patchsize=8, overlap=0.0, stride=None)
+```
+![alt text](https://github.com/Mr-TalhaIlyas/EMPatches/raw/main/screens/1D.png)
+```python
+ax1 = plt.subplot(1)
+plt.plot(patches[0]) # 0th patch
+ax2 = plt.subplot(2, sharex=ax1, sharey=ax1)
+plt.plot(patches[2]) # 2nd pathc
+plt.suptitle('patched 1D spectra')
+# merge again
+mp = emp.merge_patches(patches, indices)
+```
+![alt text](https://github.com/Mr-TalhaIlyas/EMPatches/raw/main/screens/1dp.png)
+
+## <a name="Batched-Patching">Batched Patching</a>
 
 ### Things to know.
 
@@ -150,8 +245,7 @@ plt.title('2nd merged image in batch')
 ```
 ![alt text](https://github.com/Mr-TalhaIlyas/EMPatches/raw/main/screens/bm.png)
 
-
-## Patching via Providing Indices
+## <a name="Patching-via-Providing-Indices">Patching via Providing Indices</a>
 
 **NOTE** in this case merging is not supported.
 
@@ -175,3 +269,5 @@ plt.title('patching via providing indices')
 ```
 
 ![alt text](https://github.com/Mr-TalhaIlyas/EMPatches/raw/main/screens/p_via_indices.png)
+
+For more infomration visit Homepage.
