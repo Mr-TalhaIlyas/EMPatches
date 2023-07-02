@@ -449,7 +449,7 @@ class BatchPatching(EMPatches):
         m_patches = np.asarray(m_patches)
         
         if self.typ == 'torch':
-            m_patches = m_patches.permute(0,3,2,1)
+            m_patches = m_patches.transpose(0,3,2,1)
 
         return m_patches
         
