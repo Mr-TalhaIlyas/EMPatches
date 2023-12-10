@@ -8,14 +8,19 @@ Extract and Merge Batches/Image patches (tf/torch), fast and self-contained digi
 
 * **Extract** patches
 * **Merge** the extracted patches to obtain the original image back.
+
+
 ### *Upadate 0.2.3 (Bug Fixes)*
-### *Upadate 0.2.2 (New Functionalities)*
+<details>
+<summary><b>Update 0.2.2 (New Functionalities)</b></summary>
 
 * Handling 1D spectral and 3D volumetric data structures, thanks to [antonyvam](https://github.com/antonyvam).
 * Batch processing support for 1D, 2D, 3D (image/pixel + voxel/volumetric) data added.
 * Bug fixes for multi-dimensional image patch merging for `C > 3`.
+</details>
 
-### *Update 0.2.0*
+<details>
+<summary><b>Update 0.2.0 (New Functionalities)</b></summary>
 
 * Handling of `tensorflow`/`pytorch` **Batched images** of shape `BxCxHxW` -> `pytorch` or `BxHxWxC` -> `tf`. C can be any number not limited to just RGB channels.
 * **Modes** added for mergeing patches.
@@ -23,8 +28,10 @@ Extract and Merge Batches/Image patches (tf/torch), fast and self-contained digi
     2. `max` : maximum value of overlapping area at each pixel will be written.
     3. `min`: minimum value of overlapping area at each pixel will be written.
     4. `avg` : mean/average value of overlapping area at each pixel will be written.
+ 
 * Patching via providing **Indices**.
 * **Strided** patching thanks to [Andreasgejlm](https://github.com/Andreasgejlm)
+</details>
 
 ## Dependencies
 
